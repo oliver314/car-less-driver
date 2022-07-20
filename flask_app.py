@@ -5,7 +5,8 @@ import emoji
 from PIL import Image, ImageFont, ImageDraw
 import numpy as np
 import urllib.request as urlib
-import keyboard
+from pynput import keyboard
+
 app = Flask(__name__)
 video = cv2.VideoCapture(0)
 
@@ -39,20 +40,24 @@ def draw_emoji(image, emoji=':left_arrow:'):
     image = np.array(image)
     return image
 
-def get_detected_key():
-    try:  # used try so that if user pressed other than the given key error will not be shown
-        if keyboard.is_pressed('a'):
-            playsound.playsound(fn_left)
-            command = "Turn left!"
-        if keyboard.is_pressed('d'):
-            playsound.playsound(fn_right)
-            command = "Turn right!"
-        if keyboard.is_pressed('w'):
-            playsound.playsound(fn_forward)
-            command = "Go forward!"
-    except:
-        pass
-    return command
+def on_press(key):
+    pass
+
+def on_release(key):
+    global command
+    print('{0} released'.format(key))
+    if key == keyboard.Key.right:
+        playsound.playsound(fn_right)
+        command = "Turn right!"
+    if key == keyboard.Key.left:
+        playsound.playsound(fn_left)
+        command = "Turn left!"
+    if key == keyboard.Key.up:
+        playsound.playsound(fn_forward)
+        command = "Go forward!"
+
+
+
 
 URL = "http://172.20.10.5:8080/shot.jpg?rnd=493155"
 
@@ -78,18 +83,6 @@ def gen(video):
 
         cv2.putText(image, command, (100, 100), font, 3, (255, 255, 255), 3)
         
-        # if count % 200 < 100:
-        #      cv2.putText(image, "Turn left!", (100, 100), font, 3, (255, 255, 255), 3)
-        #      #image = draw_emoji(image)
-        # else:
-        #      cv2.putText(image, "Turn right!", (100, 100), font, 3, (255, 255, 255), 3)
-        
-        if count % 100 == 0:
-            #command = get_detected_key()
-            pass
-        if count % 200 == 100:
-            playsound.playsound(fn_right)
-
         ret, jpeg = cv2.imencode('.jpg', image)
 
         frame = jpeg.tobytes()
@@ -101,6 +94,10 @@ def gen(video):
 @app.route('/video_feed')
 def video_feed():
     global video
+    listener = keyboard.Listener(
+        on_press=on_press,
+        on_release=on_release)
+    listener.start()
     return Response(gen(video),
                     mimetype='multipart/x-mixed-replace; boundary=frame')
 
