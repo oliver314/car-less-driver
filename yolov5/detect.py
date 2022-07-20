@@ -44,7 +44,7 @@ from utils.general import (LOGGER, check_file, check_img_size, check_imshow, che
                            increment_path, non_max_suppression, print_args, scale_coords, strip_optimizer, xyxy2xywh)
 from utils.plots import Annotator, colors, save_one_box
 from utils.torch_utils import select_device, time_sync
-from navigation.navigate_chairs import region_of_interest
+from navigation.navigate_chairs import isRectangleOverlap
 
 @torch.no_grad()
 def run(
@@ -74,6 +74,7 @@ def run(
         hide_conf=False,  # hide confidences
         half=False,  # use FP16 half-precision inference
         dnn=False,  # use OpenCV DNN for ONNX inference
+        stop_area=[(100,500),(1180,700)] # coordinates for stopping box
 ):
     source = str(source)
     save_img = not nosave and not source.endswith('.txt')  # save inference images
@@ -134,8 +135,6 @@ def run(
         for i, det in enumerate(pred):  # per image
 
             # Log detections        
-            # LOGGER.info(f'Detections: {det[:,0]}')
-
             seen += 1
             if webcam:  # batch_size >= 1
                 p, im0, frame = path[i], im0s[i].copy(), dataset.count
@@ -149,7 +148,11 @@ def run(
             s += '%gx%g ' % im.shape[2:]  # print string
             gn = torch.tensor(im0.shape)[[1, 0, 1, 0]]  # normalization gain whwh
             imc = im0.copy() if save_crop else im0  # for save_crop
-            annotator = Annotator(im0, line_width=line_thickness, example=str(names))
+            annotator = Annotator(im0, line_width=line_thickness, example=str(names), pil=True)
+
+            # Draw stop static bounding box
+            annotator.rectangle(xy = stop_area, outline = (0,0,255))
+
             if len(det):
                 # Rescale boxes from img_size to im0 size
                 det[:, :4] = scale_coords(im.shape[2:], det[:, :4], im0.shape).round()
@@ -161,6 +164,16 @@ def run(
 
                 # Write results
                 for *xyxy, conf, cls in reversed(det):
+                    x0, y0, x1, y1 = xyxy[0].item(), xyxy[1].item(), xyxy[2].item(), xyxy[3].item()
+                    bbox = [x0, y0, x1, y1]
+                    LOGGER.info(type(bbox[0]))
+                    LOGGER.info(type(float(stop_area[0][0])))
+                    LOGGER.info(f'Detection bbox: {bbox}')
+
+                    # Navigate chairs
+                    overlap = isRectangleOverlap([float(stop_area[0][0]), float(stop_area[0][1]), float(stop_area[1][0]), float(stop_area[1][1])], bbox)
+                    LOGGER.info(f'{overlap}Overlap with stop area')
+
                     if save_txt:  # Write to file
                         xywh = (xyxy2xywh(torch.tensor(xyxy).view(1, 4)) / gn).view(-1).tolist()  # normalized xywh
                         line = (cls, *xywh, conf) if save_conf else (cls, *xywh)  # label format
@@ -207,8 +220,7 @@ def run(
         LOGGER.info(f'{s}Done. ({t3 - t2:.3f}s)')
         LOGGER.info(f'{conf_thres} Confidence threshold and {iou_thres} IOU_Tresh for NMS')
 
-        # Navigate chairs
-        # region_of_interest()
+
 
     # Print results
     t = tuple(x / seen * 1E3 for x in dt)  # speeds per image
@@ -218,8 +230,6 @@ def run(
         LOGGER.info(f"Results saved to {colorstr('bold', save_dir)}{s}")
     if update:
         strip_optimizer(weights)  # update model (to fix SourceChangeWarning)
-
-
 
 
 
