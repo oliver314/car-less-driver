@@ -14,17 +14,15 @@ USE_PHONE = False
 
 count = 0
 command = "Default"
-tts = gtts.gTTS("Turn left")
+tts = gtts.gTTS("Turn left", tld="co.nz")
 fn_left = "turnleft.mp3"
 tts.save(fn_left)
-tts = gtts.gTTS("Turn right")
+tts = gtts.gTTS("Turn right", tld="co.nz")
 fn_right = "turnright.mp3"
 tts.save(fn_right)
-tts = gtts.gTTS("Go forward")
+tts = gtts.gTTS("Go forward", tld="co.nz")
 fn_forward = "goforward.mp3"
 tts.save(fn_forward)
-#tts = gtts.gTTS("Don't turn me off, Hal")
-#tts.save(fn)
 
 @app.route('/')
 def index():
